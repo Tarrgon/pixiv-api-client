@@ -16,8 +16,7 @@ async function callApi(url, options) {
   const finalUrl = /^https?:\/\//i.test(url) ? url : BASE_URL + url;
 
   const res = await fetch(finalUrl, options);
-  const responseData = await res.json();
-  return responseData.response;
+  return await res.json();
 }
 
 class PixivApi {
