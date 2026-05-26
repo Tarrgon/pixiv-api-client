@@ -42,7 +42,7 @@ class PixivApi {
     });
   }
 
-  tokenRequest(code, codeVerifier) {
+  async tokenRequest(code, codeVerifier) {
     const data = qs.stringify({
       client_id: CLIENT_ID,
       client_secret: CLIENT_SECRET,
@@ -108,7 +108,7 @@ class PixivApi {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  createProvisionalAccount(nickname) {
+  async createProvisionalAccount(nickname) {
     if (!nickname) {
       return Promise.reject(new Error('nickname required'));
     }
