@@ -2,7 +2,6 @@
 
 'use strict';
 
-const axios = require('axios');
 const qs = require('qs');
 const md5 = require('blueimp-md5');
 const moment = require('moment');
@@ -15,15 +14,10 @@ const HASH_SECRET =
 
 function callApi(url, options) {
   const finalUrl = /^https?:\/\//i.test(url) ? url : BASE_URL + url;
-  return axios(finalUrl, options)
-    .then(res => res.data)
-    .catch(err => {
-      if (err.response) {
-        throw err.response.data;
-      } else {
-        throw err.message;
-      }
-    });
+
+  const res = await fetch(finalUrl, options);
+  const responseData = await res.json();
+  return responseData.response;
 }
 
 class PixivApi {
@@ -48,49 +42,6 @@ class PixivApi {
     });
   }
 
-  login(username, password, rememberPassword) {
-    if (!username) {
-      return Promise.reject(new Error('username required'));
-    }
-    if (!password) {
-      return Promise.reject(new Error('password required'));
-    }
-    const data = qs.stringify({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      get_secure_url: true,
-      include_policy: true,
-      grant_type: 'password',
-      username,
-      password,
-    });
-    const options = {
-      method: 'POST',
-      headers: Object.assign(this.getDefaultHeaders(), {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      }),
-      data,
-    };
-    return axios('https://oauth.secure.pixiv.net/auth/token', options)
-      .then(res => {
-        this.auth = res.data.response;
-        // eslint-disable-next-line no-unneeded-ternary
-        this.rememberPassword = rememberPassword === false ? false : true;
-        if (rememberPassword) {
-          this.username = username;
-          this.password = password;
-        }
-        return res.data.response;
-      })
-      .catch(err => {
-        if (err.response) {
-          throw err.response.data;
-        } else {
-          throw err.message;
-        }
-      });
-  }
-
   tokenRequest(code, codeVerifier) {
     const data = qs.stringify({
       client_id: CLIENT_ID,
@@ -101,25 +52,19 @@ class PixivApi {
       grant_type: 'authorization_code',
       include_policy: true,
     });
+
     const options = {
       method: 'POST',
       headers: Object.assign(this.getDefaultHeaders(), {
         'Content-Type': 'application/x-www-form-urlencoded',
       }),
-      data,
+      body: data,
     };
-    return axios('https://oauth.secure.pixiv.net/auth/token', options)
-      .then(res => {
-        this.auth = res.data.response;
-        return res.data.response;
-      })
-      .catch(err => {
-        if (err.response) {
-          throw err.response.data;
-        } else {
-          throw err.message;
-        }
-      });
+
+    const res = await fetch('https://oauth.secure.pixiv.net/auth/token', options);
+    const responseData = await res.json();
+    this.auth = responseData.response;
+    return responseData.response;
   }
 
   logout() {
@@ -134,10 +79,11 @@ class PixivApi {
     return this.auth;
   }
 
-  refreshAccessToken(refreshToken) {
+  async refreshAccessToken(refreshToken) {
     if ((!this.auth || !this.auth.refresh_token) && !refreshToken) {
       return Promise.reject(new Error('refresh_token required'));
     }
+
     const data = qs.stringify({
       client_id: CLIENT_ID,
       client_secret: CLIENT_SECRET,
@@ -146,25 +92,19 @@ class PixivApi {
       grant_type: 'refresh_token',
       refresh_token: refreshToken || this.auth.refresh_token,
     });
+
     const options = {
       method: 'POST',
       headers: Object.assign(this.getDefaultHeaders(), {
         'Content-Type': 'application/x-www-form-urlencoded',
       }),
-      data,
+      body: data,
     };
-    return axios('https://oauth.secure.pixiv.net/auth/token', options)
-      .then(res => {
-        this.auth = res.data.response;
-        return res.data.response;
-      })
-      .catch(err => {
-        if (err.response) {
-          throw err.response.data;
-        } else {
-          throw err.message;
-        }
-      });
+
+    const res = await fetch('https://oauth.secure.pixiv.net/auth/token', options);
+    const responseData = await res.json();
+    this.auth = responseData.response;
+    return responseData.response;
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -172,6 +112,7 @@ class PixivApi {
     if (!nickname) {
       return Promise.reject(new Error('nickname required'));
     }
+
     const data = qs.stringify({
       ref: 'pixiv_ios_app_provisional_account',
       user_name: nickname,
@@ -183,20 +124,12 @@ class PixivApi {
         'Content-Type': 'application/x-www-form-urlencoded',
         Authorization: 'Bearer WHDWCGnwWA2C8PRfQSdXJxjXp0G6ULRaRkkd6t5B6h8',
       },
-      data,
+      body: data,
     };
-    return axios(
-      'https://accounts.pixiv.net/api/provisional-accounts/create',
-      options
-    )
-      .then(res => res.data.body)
-      .catch(err => {
-        if (err.response) {
-          throw err.response.data;
-        } else {
-          throw err.message;
-        }
-      });
+
+    const res = await fetch('https://accounts.pixiv.net/api/provisional-accounts/create', options);
+    const responseData = await res.json();
+    return responseData.body
   }
 
   // require auth
@@ -223,7 +156,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
 
     return this.requestUrl(
@@ -647,7 +580,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl(`/v1/illust/comment/add`, options);
   }
@@ -669,7 +602,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl(`/v1/novel/comment/add`, options);
   }
@@ -704,7 +637,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v2/illust/bookmark/add', options);
   }
@@ -721,7 +654,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v1/illust/bookmark/delete', options);
   }
@@ -746,7 +679,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v2/novel/bookmark/add', options);
   }
@@ -763,7 +696,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v1/novel/bookmark/delete', options);
   }
@@ -784,7 +717,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v1/user/follow/add', options);
   }
@@ -803,7 +736,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v1/user/follow/delete', options);
   }
@@ -1086,7 +1019,7 @@ class PixivApi {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      data,
+      body: data,
     };
     return this.requestUrl('/v1/user/ai-show-settings/edit', options);
   }
@@ -1113,9 +1046,8 @@ class PixivApi {
         if (this.rememberPassword) {
           if (this.username && this.password) {
             return this.login(this.username, this.password).then(() => {
-              options.headers.Authorization = `Bearer ${
-                this.auth.access_token
-              }`;
+              options.headers.Authorization = `Bearer ${this.auth.access_token
+                }`;
               return callApi(url, options);
             });
           }
